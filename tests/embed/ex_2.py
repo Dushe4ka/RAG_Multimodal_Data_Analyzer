@@ -31,24 +31,24 @@ def main():
         sparse_model_name="prithivida/Splade_PP_en_v1",
     )
 
-    print("Индексация документов (с payload: source, index)...")
-    store.add_documents(
-        DOCUMENTS,
-        payloads=[{"source": f"doc_{i}", "index": i} for i in range(len(DOCUMENTS))],
-    )
+    # print("Индексация документов (с payload: source, index)...")
+    # store.add_documents(
+    #     DOCUMENTS,
+    #     payloads=[{"source": f"doc_{i}", "index": i} for i in range(len(DOCUMENTS))],
+    # )
 
-    # Пример с чанкингом и метаданными файла (filename, file_link)
-    long_doc = (
-        "Python — язык программирования. "
-        "REST API: методы GET, POST. Деплой через Docker и Kubernetes. "
-        "FastAPI даёт OpenAPI. Qdrant — гибридный поиск. CI/CD с GitHub Actions."
-    )
-    store.add_documents(
-        [long_doc],
-        payloads=[{"filename": "intro.pdf", "file_link": "/files/intro.pdf"}],
-        chunk_options={"chunk_size": 80, "chunk_overlap": 20},
-    )
-    print("Готово.\n")
+    # # Пример с чанкингом и метаданными файла (filename, file_link)
+    # long_doc = (
+    #     "Python — язык программирования. "
+    #     "REST API: методы GET, POST. Деплой через Docker и Kubernetes. "
+    #     "FastAPI даёт OpenAPI. Qdrant — гибридный поиск. CI/CD с GitHub Actions."
+    # )
+    # store.add_documents(
+    #     [long_doc],
+    #     payloads=[{"filename": "intro.pdf", "file_link": "/files/intro.pdf"}],
+    #     chunk_options={"chunk_size": 80, "chunk_overlap": 20},
+    # )
+    # print("Готово.\n")
 
     for query_name, query in [("По ключевым словам", QUERY_KEYWORD), ("Семантический", QUERY_SEMANTIC)]:
         print(f"--- Запрос: «{query}» ({query_name}) ---")
