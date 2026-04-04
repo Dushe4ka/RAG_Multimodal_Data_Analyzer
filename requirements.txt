@@ -12,6 +12,8 @@ motor
 pymongo
 qdrant_client
 fastembed
+# BGE-M3 (локально): FlagEmbedding тянет PyTorch — тяжёлая зависимость; для qwen/openai не обязательна.
+FlagEmbedding
 pydantic
 python-dotenv
 langchain-community

@@ -132,7 +132,7 @@ python3 -m tests.embed.ex_5_rag_agent_chat
   - `QDRANT_URL`
   - `USE_SPARSE`
   - `SPARSE_MODEL_NAME`
-  - `DENSE_MODEL_PROVIDER` (`qwen` или `openai`)
+  - `DENSE_MODEL_PROVIDER` (`qwen`, `openai` или `bge_m3`; для `bge_m3` — `BGE_M3_MODEL`, `BGE_M3_USE_FP16`, опционально `VECTOR_USE_COLBERT`)
 - для LLM:
   - `LLM_API_URL` (OpenAI-compatible endpoint)
   - `LLM_API_KEY`

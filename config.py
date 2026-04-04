@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import os
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -16,6 +17,11 @@ class Settings(BaseSettings):
     DENSE_MODEL_PROVIDER:str
     SPARSE_MODEL_NAME:str
     USE_SPARSE:bool
+    # BGE-M3 (локально, FlagEmbedding); при DENSE_MODEL_PROVIDER=bge_m3
+    BGE_M3_MODEL: str = Field(default="BAAI/bge-m3")
+    BGE_M3_USE_FP16: bool = Field(default=True)
+    # Multivector ColBERT в Qdrant (только с bge_m3 + sparse_backend bgem3 при USE_SPARSE)
+    VECTOR_USE_COLBERT: bool = Field(default=False)
     # Данные для работы с JWT
     SECRET_KEY:str
     ALGORITHM:str

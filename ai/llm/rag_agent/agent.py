@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
@@ -38,14 +38,36 @@ def create_rag_agent(
     use_sparse: bool = True,
 ) -> Any:
     """Создает RAG-агента LangChain с tool-based retrieval + памятью."""
-    embed_provider = settings.DENSE_MODEL_PROVIDER if settings.DENSE_MODEL_PROVIDER in ("qwen", "openai") else "qwen"
-    embed = EmbedModel(provider=embed_provider)  # type: ignore[arg-type]
+    prov = settings.DENSE_MODEL_PROVIDER
+    if prov == "bge_m3":
+        embed = EmbedModel(
+            provider="bge_m3",
+            model_name=settings.BGE_M3_MODEL,
+            use_fp16=settings.BGE_M3_USE_FP16,
+        )
+        sparse_backend: Literal["fastembed", "bgem3"] = "bgem3" if use_sparse else "fastembed"
+        use_colbert = settings.VECTOR_USE_COLBERT
+    elif prov == "openai":
+        embed = EmbedModel(provider="openai")
+        sparse_backend = "fastembed"
+        use_colbert = False
+    elif prov == "qwen":
+        embed = EmbedModel(provider="qwen")
+        sparse_backend = "fastembed"
+        use_colbert = False
+    else:
+        embed = EmbedModel(provider="qwen")
+        sparse_backend = "fastembed"
+        use_colbert = False
+
     vector_store = VectorStore(
         collection_name=collection_name,
         embed_model=embed,
         qdrant_url=qdrant_url,
         use_sparse=use_sparse,
         sparse_model_name=settings.SPARSE_MODEL_NAME,
+        sparse_backend=sparse_backend,
+        use_colbert=use_colbert,
     )
 
     llm = _build_llm()
@@ -59,8 +81,8 @@ def create_rag_agent(
     middleware = [
         SummarizationMiddleware(
             model=llm,
-            trigger=("tokens", 6000),
-            keep=("messages", 20),
+            trigger=("tokens", 12000),
+            keep=("messages", 40),
         )
     ]
 

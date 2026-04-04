@@ -2,102 +2,111 @@
 
 ## Цель
 
-Использовать Qdrant для RAG с **гибридным поиском**: объединение dense-векторов (семантика) и sparse-векторов (точное совпадение слов / ключевые слова) для более качественного поиска.
+Использовать Qdrant для RAG с **гибридным поиском**: объединение dense-векторов (семантика), опционально sparse (лексика) и опционально **ColBERT multivector** (late interaction, MaxSim) через **RRF**.
 
 ## Компоненты
 
-### 1. Dense-векторы (уже есть)
+### 1. Dense-векторы
 
 - **Модуль:** `ai/vector/embed_model.py`
-- **Классы:** `EmbedModel`, `QwenEmbeddings`, `OpenAIEmbeddings`
-- **Роль:** преобразование текста в плотный вектор (семантическое сходство).
-- **Использование:** для запросов и документов — один и тот же эмбеддер (Qwen или OpenAI).
+- **Классы:** `EmbedModel`, `QwenEmbeddings`, `OpenAIEmbeddings`, `BGEM3Embeddings`
+- **Роль:** плотное представление текста (косинусное сходство в Qdrant).
+- **Имя вектора в коллекции:** `dense`
 
-### 2. Sparse-векторы (нужно добавить)
+### 2. Sparse-векторы (два режима)
 
-- **Библиотека:** [fastembed](https://github.com/qdrant/fastembed) — модель **SPLADE** (Sparse Lexical and Expansion).
-- **Формат:** пары `(indices, values)` — индексы в словаре и веса токенов.
-- **Роль:** точное/лексическое совпадение и расширение запроса (синонимы, связанные термины).
-- **Модель по умолчанию:** `prithivida/Splade_PP_en_v1` (в fastembed; на HuggingFace — Qdrant/Splade_PP_en_v1).
-- **Зависимость:** `pip install fastembed`.
+| `sparse_backend` | Источник | Примечание |
+|------------------|----------|------------|
+| `fastembed` (по умолчанию) | **SPLADE** (`SparseTextEmbedding`) | Не смешивать dense от BGE-M3 с этим sparse: для BGE-M3 задайте `bgem3`. |
+| `bgem3` | **BGE-M3** `lexical_weights` → `SparseVector` | Тот же `EmbedModel(provider="bge_m3")`, что и для dense. |
 
-### 3. Qdrant: коллекция с двумя представлениями
+- **Имя вектора:** `sparse`
+- **Формат Qdrant:** `SparseVector(indices=..., values=...)`
 
-В одной коллекции у каждой точки два именованных вектора:
+### 3. ColBERT (опционально)
 
-| Имя вектора | Тип    | Модель / источник                    |
-|-------------|--------|--------------------------------------|
-| `dense`     | dense  | `EmbedModel` (Qwen / OpenAI)         |
-| `sparse`    | sparse | fastembed `SparseTextEmbedding`      |
+- Только с **BGE-M3** (`use_colbert=True` в `VectorStore`).
+- **Имя вектора:** `colbert`
+- Конфигурация: `VectorParams` с `multivector_config=MultiVectorConfig(comparator=MAX_SIM)`, `hnsw_config` с `m=0` (рекомендация Qdrant для multivector).
+- Запрос и документы кодируются одной моделью; запрос — multivector из `encode_batch(..., return_colbert=True)`.
 
-- **Создание коллекции:**  
-  `vectors_config={"dense": VectorParams(size=<dim>, distance=COSINE)}`,  
-  `sparse_vectors_config={"sparse": SparseVectorParams()}`.
-- **Имена** `dense` и `sparse` должны различаться (ограничение Qdrant).
+### 4. Схема коллекции
 
-### 4. Гибридный поиск (Query API, v1.10+)
+Зависит от флагов:
 
-Идея: выполнить два подзапроса (prefetch) — по dense и по sparse — и слить результаты одним из методов.
+- Всегда: `dense` (dense).
+- Если `use_sparse`: `sparse` в `sparse_vectors_config`.
+- Если `use_colbert`: второй именованный dense-вектор `colbert` с multivector (не путать с sparse).
 
-- **Prefetch:** для каждого подзапроса задаётся:
-  - `query` — вектор (dense — список float, sparse — `SparseVector(indices=..., values=...)`);
-  - `using` — имя вектора (`"dense"` или `"sparse"`);
-  - `limit` — сколько кандидатов взять (рекомендуется не меньше чем `limit + offset` основного запроса).
-- **Слияние (fusion):**
-  - **RRF (Reciprocal Rank Fusion)** — по умолчанию: объединение по рангам, константа `k=2` (при необходимости параметризованный RRF с `k=60` и т.д.).
-  - **DBSF** — нормализация по распределению скоров и суммирование (доступно с v1.11).
+**Миграция:** схема задаётся при создании коллекции. Если коллекция уже создана без ColBERT, нельзя просто включить `use_colbert=True` под тем же именем — используйте **новое имя коллекции** или пересоздайте коллекцию.
 
-Пример запроса (псевдокод):
+### 5. Гибридный поиск и RRF
 
-```text
-query_points(
-  collection_name=...,
-  prefetch=[
-    Prefetch(query=dense_vector, using="dense", limit=20),
-    Prefetch(query=SparseVector(indices=..., values=...), using="sparse", limit=20),
-  ],
-  query=FusionQuery(fusion=Fusion.RRF),
-  limit=10,
+`VectorStore.search(..., mode="hybrid")`:
+
+- Строится один или несколько **prefetch** (dense; при `use_sparse` — sparse; при `use_colbert` — colbert).
+- Если prefetch один (только dense), выполняется обычный nearest по `dense`.
+- Иначе: `query_points(..., prefetch=[...], query=FusionQuery(fusion=RRF))`.
+
+Ссылки:
+
+- [Hybrid / Query API — Qdrant](https://qdrant.tech/documentation/guides/text-search)
+- [Multivector / late interaction — Qdrant](https://qdrant.tech/documentation/tutorials-search-engineering/using-multivector-representations/)
+- [FlagEmbedding / BGE-M3](https://github.com/FlagOpen/FlagEmbedding)
+
+### 6. Класс `VectorStore` (`ai/vector/vector_store.py`)
+
+Основные параметры конструктора:
+
+- `embed_model` — `EmbedModel` (qwen / openai / bge_m3).
+- `use_sparse` — хранить и участвовать в поиске sparse.
+- `sparse_backend` — `"fastembed"` | `"bgem3"`.
+- `use_colbert` — multivector ColBERT (только с BGE-M3).
+
+Ограничения (валидация в коде):
+
+- При эмбеддере BGE-M3 и `use_sparse=True` нужен `sparse_backend="bgem3"`.
+- `use_colbert=True` требует `EmbedModel(provider="bge_m3")`.
+- При `use_sparse=True` и `use_colbert=True` — `sparse_backend="bgem3"`.
+
+### 7. Индексация и поиск (поток данных)
+
+**Индексация (`add_documents`):**
+
+- Режим qwen/openai + SPLADE: dense через `embed_documents`, sparse через fastembed (как раньше).
+- Режим BGE-M3: один вызов `encode_batch` на батч (dense + при необходимости lexical + colbert), затем upsert.
+
+**Поиск:**
+
+- Запрос → те же эмбеддеры, что при индексации.
+- `mode="dense"` — только ветка `dense`.
+
+### 8. Пример BGE-M3
+
+```python
+from ai.vector.embed_model import EmbedModel
+from ai.vector.vector_store import VectorStore
+from config import settings
+
+store = VectorStore(
+    collection_name="my_bge_m3",
+    embed_model=EmbedModel(provider="bge_m3"),
+    qdrant_url=settings.QDRANT_URL,
+    use_sparse=True,
+    sparse_backend="bgem3",
+    use_colbert=False,  # True — отдельная схема, новая коллекция
 )
+store.add_documents(texts=["..."], payloads=[{}])
+hits = store.search("запрос", mode="hybrid", limit=5)
 ```
 
-### 5. Поток данных для RAG
+Скрипт-пример: `python3 -m tests.embed.ex_6_bge_m3_qdrant`.
 
-**Индексация документов:**
+### 9. RAG-агент и .env
 
-1. Текст чанка → dense-вектор через `EmbedModel.embed_documents`.
-2. Тот же текст → sparse-вектор через fastembed `SparseTextEmbedding.embed`.
-3. В Qdrant одна точка с `vector={"dense": [...], "sparse": SparseVector(...)}` и payload (например, `text`, `source`, `metadata`).
+При `DENSE_MODEL_PROVIDER=bge_m3` агент поднимает `EmbedModel(provider="bge_m3")` и `VectorStore` с `sparse_backend="bgem3"` (если `USE_SPARSE`), плюс `VECTOR_USE_COLBERT` из настроек.
 
-**Поиск (гибридный):**
+### 10. Ссылки (доп.)
 
-1. Запрос пользователя → dense-вектор через `EmbedModel.embed_query`.
-2. Тот же запрос → sparse-вектор через fastembed для одного текста.
-3. Вызов `query_points` с двумя prefetch (dense + sparse) и `query=FusionQuery(fusion=Fusion.RRF)`.
-4. Возврат топ-N точек с payload для RAG (ретрайвер).
-
-### 6. Что реализовать в коде
-
-- **`ai/vector/vector_store.py` — класс `VectorStore`:**
-  - Инициализация: клиент Qdrant, коллекция, `EmbedModel` (dense), размер dense-вектора, опционально URL/настройки Qdrant.
-  - Инициализация sparse: экземпляр fastembed `SparseTextEmbedding` (модель по умолчанию SPLADE).
-  - **Создание коллекции:** если коллекции нет — создать с `dense` и `sparse` (named vectors).
-  - **Добавление документов:** `add_documents(texts, payloads)` — эмбеддинг dense + sparse, `upsert` точек с обоими векторами.
-  - **Поиск:**  
-    - `hybrid_search(query_text, limit, ...)` — эмбеддинг запроса в dense и sparse, два prefetch, RRF, возврат списка документов/рекордов.  
-    - Опционально: `dense_only_search` для только семантического поиска.
-- **Конфиг:** размер dense-вектора (из настроек или параметр), URL Qdrant (например в `config` или переменные окружения).
-- **Зависимости:** в `requirements.txt` добавить `fastembed`.
-
-### 7. Важные моменты
-
-- **Размер dense:** должен совпадать с размером выхода `EmbedModel` (Qwen/OpenAI). Либо передавать в конструктор, либо один раз получить через `embed_query(".")` и `len()`.
-- **Limit в prefetch:** по документации Qdrant prefetch должен возвращать не меньше `limit + offset` основного запроса, иначе возможны пустые результаты.
-- **Один и тот же словарь для sparse:** и для индексации, и для запросов используется одна и та же SPLADE-модель, чтобы indices/values были согласованы.
-
-### 8. Ссылки
-
-- [Hybrid and Multi-Stage Queries — Qdrant](https://qdrant.tech/documentation/concepts/hybrid-queries/)
 - [Vectors (named, dense, sparse) — Qdrant](https://qdrant.tech/documentation/concepts/vectors/)
 - [SPLADE with FastEmbed](https://qdrant.github.io/fastembed/examples/SPLADE_with_FastEmbed/)
-- [Query API (query_points) — Qdrant](https://api.qdrant.tech/api-reference/search/query-points)
