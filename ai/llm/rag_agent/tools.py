@@ -50,6 +50,8 @@ def build_rag_tools(
                     "score": hit.get("score"),
                     "source": payload.get("source"),
                     "workspace_id": payload.get("workspace_id"),
+                    "file_id": payload.get("file_id"),
+                    "object_key": payload.get("object_key"),
                     "content": payload.get("text", ""),
                 }
             )

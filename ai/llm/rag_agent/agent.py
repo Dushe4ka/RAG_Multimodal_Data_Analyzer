@@ -121,3 +121,24 @@ def chat_once(
         return "Пустой ответ от агента."
     content = getattr(messages[-1], "content", None)
     return content if isinstance(content, str) else str(messages[-1])
+
+
+def chat_once_structured(
+    agent: Any,
+    message: str,
+    *,
+    thread_id: str,
+    user_id: str,
+    sources: Optional[list[dict[str, Any]]] = None,
+) -> dict[str, Any]:
+    """Возвращает структурированный ответ для API чата."""
+    answer = chat_once(
+        agent=agent,
+        message=message,
+        thread_id=thread_id,
+        user_id=user_id,
+    )
+    return {
+        "answer": answer,
+        "sources": sources or [],
+    }

@@ -38,8 +38,17 @@ services:
     command: server /data --console-address ":9001"
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
   redis_data:
   minio_data:
+  ollama_data:
 

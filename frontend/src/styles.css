@@ -1,0 +1,45 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f6f7fb;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+section {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input,
+select,
+button {
+  padding: 8px;
+}
+
+.chatBox {
+  background: #fafafa;
+  border: 1px solid #eee;
+  min-height: 120px;
+  padding: 10px;
+}
+
+.user {
+  margin-bottom: 10px;
+}
+
+.assistant {
+  margin-bottom: 10px;
+}

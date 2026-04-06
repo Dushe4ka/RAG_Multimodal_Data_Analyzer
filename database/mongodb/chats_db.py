@@ -25,7 +25,6 @@
 """
 
 import asyncio
-import uuid
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
@@ -94,7 +93,8 @@ class AsyncChatsDatabase:
             indexes = await self._collection.index_information()
             if "chat_id_1" not in indexes:
                 await self._collection.create_index("chat_id", unique=True)
-                await self._collection.create_index("user_id", unique=True)
+                await self._collection.create_index("user_id")
+                await self._collection.create_index([("user_id", 1), ("updated_at", -1)])
                 logger.info("✅ Индексы созданы")
             else:
                 logger.info("✅ Индексы уже существуют")
@@ -111,7 +111,14 @@ class AsyncChatsDatabase:
         """Создание коллекции chats (в MongoDB это происходит автоматически при первой вставке)"""
         logger.info("✅ Коллекция 'chats' создана или уже существует.")
 
-    async def create_chat(self, chat_id: str, user_id: str, title: str):
+    async def create_chat(
+        self,
+        chat_id: str,
+        user_id: str,
+        title: str,
+        thread_id: Optional[str] = None,
+        workspace_ids: Optional[list[str]] = None,
+    ):
         """
         Добавляет новый чат в коллекцию chats.
 
@@ -133,8 +140,13 @@ class AsyncChatsDatabase:
                 "chat_id": chat_id,
                 "user_id": user_id,
                 "title": title,
+                "thread_id": thread_id or chat_id,
+                "workspace_ids": workspace_ids or [],
+                "last_summary": "",
+                "message_history": [],
                 "created_at": date,
-                "updated_at": date
+                "updated_at": date,
+                "last_message_at": None,
             }
 
             result = await self._collection.insert_one(chat_data)
@@ -157,7 +169,7 @@ class AsyncChatsDatabase:
         """
         try:
             await self.ensure_connection()
-            chat = await self._collection.find_one({"user_id": user_id})
+            chat = await self._collection.find_one({"user_id": user_id}, sort=[("updated_at", -1)])
             return chat
         except Exception as e:
             logger.error(f"❌ Ошибка при получении чата по user_id - {user_id}: {e}")
@@ -181,8 +193,8 @@ class AsyncChatsDatabase:
         """
         try:
             await self.ensure_connection()
-            chat = await self._collection.find_one({"user_id": user_id})
-            return chat["chat_id"]
+            chat = await self._collection.find_one({"user_id": user_id}, sort=[("updated_at", -1)])
+            return chat["chat_id"] if chat else None
         except Exception as e:
             logger.error(f"❌ Ошибка при получении chat_id по user_id - {user_id}: {e}")
             raise
@@ -193,7 +205,8 @@ class AsyncChatsDatabase:
         """
         try:
             await self.ensure_connection()
-            chats = await self._collection.find({"user_id": user_id}).sort("created_at", -1)
+            cursor = self._collection.find({"user_id": user_id}).sort("created_at", -1)
+            chats = await cursor.to_list(length=None)
             return chats
         except Exception as e:
             logger.error(f"❌ Ошибка при получении всех чатов по user_id - {user_id}: {e}")
@@ -205,7 +218,8 @@ class AsyncChatsDatabase:
         """
         try:
             await self.ensure_connection()
-            chats = await self._collection.find({"user_id": user_id}).sort("created_at", -1)
+            cursor = self._collection.find({"user_id": user_id}).sort("created_at", -1)
+            chats = await cursor.to_list(length=None)
             return [chat["chat_id"] for chat in chats]
         except Exception as e:
             logger.error(f"❌ Ошибка при получении всех chat_id по user_id - {user_id}: {e}")
@@ -217,7 +231,8 @@ class AsyncChatsDatabase:
         """
         try:
             await self.ensure_connection()
-            chats = await self._collection.find().sort("created_at", -1)
+            cursor = self._collection.find().sort("created_at", -1)
+            chats = await cursor.to_list(length=None)
             logger.info(f"👥 Получено {len(chats)} чатов.")
             return chats
         except Exception as e:
@@ -241,6 +256,63 @@ class AsyncChatsDatabase:
             logger.error(f"❌ Ошибка при удалении чата по chat_id - {chat_id}: {e}")
             raise
 
+    async def update_chat_workspaces(self, chat_id: str, workspace_ids: list[str]):
+        """Обновляет привязанные к чату воркспейсы."""
+        await self.ensure_connection()
+        result = await self._collection.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"workspace_ids": workspace_ids, "updated_at": datetime.now(timezone.utc)}},
+        )
+        return result.modified_count > 0
+
+    async def touch_chat(self, chat_id: str, last_summary: Optional[str] = None):
+        """Обновляет метки активности чата после ответа агента."""
+        await self.ensure_connection()
+        payload = {
+            "updated_at": datetime.now(timezone.utc),
+            "last_message_at": datetime.now(timezone.utc),
+        }
+        if last_summary is not None:
+            payload["last_summary"] = last_summary
+        result = await self._collection.update_one({"chat_id": chat_id}, {"$set": payload})
+        return result.modified_count > 0
+
+    async def append_message(self, chat_id: str, role: str, content: str, sources: Optional[list[dict]] = None):
+        """Сохраняет сообщение в историю чата внутри chats."""
+        await self.ensure_connection()
+        message = {
+            "role": role,
+            "content": content,
+            "sources": sources or [],
+            "created_at": datetime.now(timezone.utc),
+        }
+        result = await self._collection.update_one(
+            {"chat_id": chat_id},
+            {
+                "$push": {"message_history": message},
+                "$set": {
+                    "updated_at": datetime.now(timezone.utc),
+                    "last_message_at": datetime.now(timezone.utc),
+                },
+            },
+        )
+        return result.modified_count > 0
+
+    async def get_message_history(self, chat_id: str) -> list[dict]:
+        await self.ensure_connection()
+        chat = await self._collection.find_one({"chat_id": chat_id}, {"message_history": 1})
+        if not chat:
+            return []
+        return chat.get("message_history", [])
+
+    async def rename_chat(self, chat_id: str, user_id: str, title: str) -> bool:
+        await self.ensure_connection()
+        result = await self._collection.update_one(
+            {"chat_id": chat_id, "user_id": user_id},
+            {"$set": {"title": title.strip(), "updated_at": datetime.now(timezone.utc)}},
+        )
+        return result.modified_count > 0
+
     async def convert_chat_for_api_response(self, chat: dict | list):
         """
         Конвертирует чаты из базы данных в формат для API ответа.
@@ -259,6 +331,7 @@ class AsyncChatsDatabase:
                 "chat_id": chat['chat_id'],
                 "user_id": chat['user_id'],
                 "title": chat['title'],
+                "workspace_ids": chat.get("workspace_ids", []),
                 "created_at": chat['created_at'].strftime("%d.%m.%Y %H:%M:%S"), # формат дата и время
                 "updated_at": chat['updated_at'].strftime("%d.%m.%Y %H:%M:%S")
             }
@@ -272,6 +345,7 @@ class AsyncChatsDatabase:
                     "chat_id": chat_item['chat_id'],
                     "user_id": chat_item['user_id'],
                     "title": chat_item['title'],
+                    "workspace_ids": chat_item.get("workspace_ids", []),
                     "created_at": chat_item['created_at'].strftime("%d.%m.%Y %H:%M:%S"),
                     "updated_at": chat_item['updated_at'].strftime("%d.%m.%Y %H:%M:%S")
                 })

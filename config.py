@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     DATABASE_NAME:str
     DATABASE_HOST:str
     DATABASE_PORT:str
+    DATABASE_URL: str = ""
     # Данные для векторизации
     QDRANT_URL:str
     DENSE_MODEL_PROVIDER:str
@@ -33,6 +34,25 @@ class Settings(BaseSettings):
     # Данные для работы с MongoDB
     MONGODB_URL_DEV:str
     MONGODB_URL_PROD:str
+    # MinIO / S3
+    S3_ENDPOINT: str = "localhost:9000"
+    S3_ACCESS_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "minioadmin"
+    S3_BUCKET_UPLOADS: str = "uploads"
+    S3_SECURE: bool = False
+    S3_PRESIGNED_EXPIRE_SEC: int = 3600
+    # Tika
+    TIKA_URL: str = "http://localhost:9998"
+    TIKA_TIMEOUT_SEC: float = 120.0
+    TIKA_MAX_RETRIES: int = 3
+    # Ingest/chunking
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 200
+    UPLOAD_MAX_FILE_MB: int = 100
+    # Ollama
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_VISION_MODEL: str = "qwen2.5vl:7b"
+    OLLAMA_TIMEOUT_SEC: float = 120.0
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
@@ -43,6 +63,17 @@ settings=Settings()
 def get_db_url():
     return (
         f"postgresql+asyncpg://{settings.DATABASE_USER}:{settings.DATABASE_PASSWORD}@"
+        f"{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE_NAME}"
+    )
+
+
+def get_memory_db_url():
+    """
+    URL для LangGraph PostgresSaver/PostgresStore через psycopg.
+    Важно: psycopg не понимает диалектный суффикс '+asyncpg'.
+    """
+    return (
+        f"postgresql://{settings.DATABASE_USER}:{settings.DATABASE_PASSWORD}@"
         f"{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE_NAME}"
     )
 
