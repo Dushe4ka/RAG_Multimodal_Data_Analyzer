@@ -75,10 +75,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ workspace_ids: workspaceIds }),
     }),
-  sendMessage: (chatId: string, message: string) =>
+  sendMessage: (
+    chatId: string,
+    message: string,
+    options?: { smart_search?: boolean; smart_iterations?: number; smart_extra_queries?: number }
+  ) =>
     request<ChatMessageResponse>(`/chat/${chatId}/message`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message,
+        smart_search: options?.smart_search ?? false,
+        smart_iterations: options?.smart_iterations ?? 3,
+        smart_extra_queries: options?.smart_extra_queries ?? 2,
+      }),
     }),
   myWorkspaces: () => request<Workspace[]>("/workspaces/my"),
   createWorkspace: (name: string, is_private: boolean) =>

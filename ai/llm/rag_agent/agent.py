@@ -4,6 +4,8 @@ from typing import Any, Literal, Optional
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
+from langchain_deepseek import ChatDeepSeek
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
@@ -16,14 +18,39 @@ from .prompts import SYSTEM_PROMPT
 from .tools import build_rag_tools
 
 
-def _build_llm() -> ChatOpenAI:
-    """Единая инициализация LLM через OpenAI-совместимый endpoint проекта."""
+def _build_llm() -> Any:
+    """
+    Инициализация LLM по провайдеру из AGENT_LLM_PROVIDER:
+    - openai
+    - deepseek
+    - ollama
+    """
+    provider = (settings.AGENT_LLM_PROVIDER or "openai").strip().lower()
+
+    if provider == "deepseek":
+        return ChatDeepSeek(
+            model=settings.DEEPSEEK_MODEL,
+            api_key=settings.DEEPSEEK_API_KEY,
+            # temperature=0.2,
+            # max_tokens=4096,
+            max_retries=3,
+        )
+
+    if provider == "ollama":
+        return ChatOllama(
+            model=settings.OLLAMA_CHAT_MODEL,
+            base_url=settings.OLLAMA_BASE_URL,
+            temperature=0.2,
+            num_predict=4096,
+        )
+
+    # По умолчанию — OpenAI/OpenAI-compatible endpoint.
     return ChatOpenAI(
         model=settings.OPENAI_MODEL,
         api_key=settings.OPENAI_API_KEY,
-        # base_url=settings.LLM_API_URL,
-        temperature=0.2,
-        max_tokens=4096,
+        base_url=settings.LLM_API_URL,
+        # temperature=0.2,
+        # max_tokens=4096,
         max_retries=3,
     )
 

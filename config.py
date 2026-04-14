@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     # Данные для работы с LLM
     LLM_API_URL:str
     LLM_API_KEY:str
+    AGENT_LLM_PROVIDER: str = "openai"
     OPENAI_API_KEY:str
     OPENAI_MODEL:str
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+    OLLAMA_CHAT_MODEL: str = "qwen2.5:7b"
     # Данные для работы с MongoDB
     MONGODB_URL_DEV:str
     MONGODB_URL_PROD:str

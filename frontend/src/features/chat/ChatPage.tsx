@@ -16,6 +16,7 @@ function makeTitle(message: string) {
 export function ChatPage() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [isSmartSearchEnabled, setIsSmartSearchEnabled] = useState(false);
   const [messagesByChat, setMessagesByChat] = useState<Record<string, ChatMessage[]>>({});
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const {
@@ -40,7 +41,20 @@ export function ChatPage() {
   );
 
   const sendMutation = useMutation({
-    mutationFn: async ({ chatId, message }: { chatId: string; message: string }) => api.sendMessage(chatId, message),
+    mutationFn: async ({
+      chatId,
+      message,
+      smartSearch,
+    }: {
+      chatId: string;
+      message: string;
+      smartSearch: boolean;
+    }) =>
+      api.sendMessage(chatId, message, {
+        smart_search: smartSearch,
+        smart_iterations: 3,
+        smart_extra_queries: 2,
+      }),
   });
 
   const attachMutation = useMutation({
@@ -113,16 +127,20 @@ export function ChatPage() {
       [chatId!]: [...(prev[chatId!] || []), optimisticMessage],
     }));
     try {
-      const response = await sendMutation.mutateAsync({ chatId: chatId!, message });
+      const finalResponse = await sendMutation.mutateAsync({
+        chatId: chatId!,
+        message,
+        smartSearch: isSmartSearchEnabled,
+      });
       const assistantMessage: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",
-        content: response.answer,
-        sources: response.sources,
+        content: finalResponse.answer,
+        sources: finalResponse.sources,
       };
       setMessagesByChat((prev) => ({
         ...prev,
-        [response.chat_id]: [...(prev[response.chat_id] || []), assistantMessage],
+        [finalResponse.chat_id]: [...(prev[finalResponse.chat_id] || []), assistantMessage],
       }));
       await queryClient.invalidateQueries({ queryKey: ["chat-history", chatId] });
     } catch {
@@ -171,6 +189,14 @@ export function ChatPage() {
       </div>
       <footer className={styles.composer}>
         <div className={styles.attachWrap}>
+          <button
+            className={`${styles.smartSearchBtn} ${isSmartSearchEnabled ? styles.smartSearchBtnActive : ""}`}
+            onClick={() => setIsSmartSearchEnabled((v) => !v)}
+            title="Умный поиск"
+            type="button"
+          >
+            Умный поиск
+          </button>
           <button className={styles.attachBtn} onClick={() => setShowWorkspacePicker((v) => !v)} title="Выбрать workspace">
             <Paperclip size={18} />
           </button>

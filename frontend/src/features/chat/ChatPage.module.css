@@ -66,6 +66,9 @@
 
 .attachWrap {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .attachBtn,
@@ -75,6 +78,30 @@
   border-radius: 10px;
   border: 1px solid #d1d5db;
   background: #fff;
+}
+
+.smartSearchBtn {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #c7ccd6;
+  background: #fff;
+  color: #334155;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.18s ease;
+}
+
+.smartSearchBtn:hover {
+  border-color: #64748b;
+  background: #f8fafc;
+}
+
+.smartSearchBtnActive {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #4338ca);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
 }
 
 .workspaceChip {

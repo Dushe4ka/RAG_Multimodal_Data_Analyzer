@@ -219,12 +219,50 @@ Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 - MongoDB: `MONGODB_URL_DEV`, `MONGODB_URL_PROD`
 - JWT: `SECRET_KEY`, `ALGORITHM`
 - LLM: `OPENAI_API_KEY`, `OPENAI_MODEL`, `LLM_API_URL`, `LLM_API_KEY`
+- Agent LLM provider: `AGENT_LLM_PROVIDER`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `OLLAMA_CHAT_MODEL`
 - Embeddings/Qdrant: `DENSE_MODEL_PROVIDER`, `QDRANT_URL`, `SPARSE_MODEL_NAME`, `USE_SPARSE`
 - MinIO: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_UPLOADS`
 - Tika: `TIKA_URL`, `TIKA_TIMEOUT_SEC`
 - Ingest: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `UPLOAD_MAX_FILE_MB`
 - Ollama: `OLLAMA_BASE_URL`, `OLLAMA_VISION_MODEL`
 - ASR/Video: `WHISPER_MODEL_SIZE`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`, `WHISPER_BEAM_SIZE`, `FFMPEG_BIN`
+
+## Выбор LLM для агента
+
+Агент выбирает чат-модель через `AGENT_LLM_PROVIDER`:
+
+- `openai` -> `langchain_openai.ChatOpenAI`
+- `deepseek` -> `langchain_deepseek.ChatDeepSeek`
+- `ollama` -> `langchain_ollama.ChatOllama`
+
+### Пример `.env` для OpenAI / OpenAI-compatible
+
+```env
+AGENT_LLM_PROVIDER=openai
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=...
+LLM_API_URL=https://api.openai.com/v1
+```
+
+### Пример `.env` для DeepSeek
+
+```env
+AGENT_LLM_PROVIDER=deepseek
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_API_KEY=...
+```
+
+### Пример `.env` для Ollama
+
+```env
+AGENT_LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_CHAT_MODEL=qwen2.5:7b
+```
+
+Примечание:
+- если `AGENT_LLM_PROVIDER` не указан или указан некорректно, используется `openai`;
+- `DENSE_MODEL_PROVIDER` управляет эмбеддингами/векторизацией и не переключает чат-модель агента.
 
 ## Тестирование
 

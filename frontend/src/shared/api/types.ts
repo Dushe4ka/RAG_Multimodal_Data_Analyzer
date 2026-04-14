@@ -36,6 +36,12 @@ export type ChatMessageResponse = {
   chat_id: string;
   answer: string;
   sources: Source[];
+  retrieval_trace?: Array<{
+    iteration: number;
+    query: string;
+    hits: number;
+    top_score: number;
+  }>;
 };
 
 export type Workspace = {
