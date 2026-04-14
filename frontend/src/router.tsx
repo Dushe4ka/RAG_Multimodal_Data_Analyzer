@@ -6,6 +6,8 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { ChatPage } from "./features/chat/ChatPage";
 import { WorkspaceDetailPage } from "./features/files/WorkspaceDetailPage";
 import { WorkspacesPage } from "./features/workspaces/WorkspacesPage";
+import { AdminUsersPage } from "./features/admin/AdminUsersPage";
+import { ProfilePage } from "./features/profile/ProfilePage";
 import { ErrorBoundary } from "./shared/ui/ErrorBoundary";
 
 export const router = createBrowserRouter([
@@ -31,6 +33,8 @@ export const router = createBrowserRouter([
           { index: true, element: <ChatPage /> },
           { path: "workspaces", element: <WorkspacesPage /> },
           { path: "workspaces/:workspaceId", element: <WorkspaceDetailPage /> },
+          { path: "admin", element: <AdminUsersPage /> },
+          { path: "profile", element: <ProfilePage /> },
         ],
       },
     ],

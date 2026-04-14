@@ -99,6 +99,24 @@
   justify-content: space-between;
 }
 
+.bottomActions {
+  display: flex;
+  gap: 8px;
+}
+
+.profileButton {
+  border-radius: 999px;
+}
+
+.sidebar.collapsed .bottom {
+  justify-content: center;
+}
+
+.sidebar.collapsed .bottomActions {
+  flex-direction: column;
+  gap: 6px;
+}
+
 .main {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.85);

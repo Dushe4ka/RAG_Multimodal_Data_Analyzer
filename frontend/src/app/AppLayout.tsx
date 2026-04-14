@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, LogOut, MessageSquarePlus, PanelsLeftBottom, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, MessageSquarePlus, PanelsLeftBottom, Pencil, Shield, Trash2, UserCircle2 } from "lucide-react";
 import { useState } from "react";
 
 import { api } from "../shared/api/client";
+import { useSession } from "../features/auth/useSession";
 import { useUiStore } from "../shared/store/uiStore";
 import styles from "./AppLayout.module.css";
 
@@ -14,6 +15,7 @@ export function AppLayout() {
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const { sidebarCollapsed, setSidebarCollapsed, setActiveChatId, activeChatId, setSelectedWorkspace } = useUiStore();
+  const session = useSession();
 
   const logoutMutation = useMutation({
     mutationFn: api.logout,
@@ -64,6 +66,12 @@ export function AppLayout() {
                 <PanelsLeftBottom size={16} />
                 Рабочие пространства
               </NavLink>
+              {session.data?.admin ? (
+                <NavLink className={styles.actionButton} to="/admin">
+                  <Shield size={16} />
+                  Админ панель
+                </NavLink>
+              ) : null}
             </>
           )}
         </div>
@@ -122,9 +130,14 @@ export function AppLayout() {
         )}
         <div className={styles.bottom}>
           {!sidebarCollapsed && <Link to="/">RAG Multimodal</Link>}
-          <button className={styles.iconButton} onClick={() => logoutMutation.mutate()} title="Выйти">
-            <LogOut size={16} />
-          </button>
+          <div className={styles.bottomActions}>
+            <NavLink className={`${styles.iconButton} ${styles.profileButton}`} to="/profile" title="Профиль">
+              <UserCircle2 size={18} />
+            </NavLink>
+            <button className={styles.iconButton} onClick={() => logoutMutation.mutate()} title="Выйти">
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
       <main className={styles.main}>

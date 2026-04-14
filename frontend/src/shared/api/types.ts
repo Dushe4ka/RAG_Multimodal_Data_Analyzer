@@ -7,6 +7,39 @@ export type UserProfile = {
   created_at: string;
 };
 
+export type AdminUser = UserProfile;
+
+export type CreateUserPayload = {
+  login: string;
+  password: string;
+  name: string;
+  surname: string;
+  role: string;
+  admin: boolean;
+};
+
+export type UpdateUserNamePayload = {
+  login: string;
+  name?: string;
+  surname?: string;
+};
+
+export type UpdateUserPasswordPayload = {
+  login: string;
+  new_pwd: string;
+};
+
+export type ProfileEditNamePayload = {
+  name?: string;
+  surname?: string;
+};
+
+export type ProfileEditPasswordPayload = {
+  old_pwd: string;
+  new_pwd: string;
+  confirm_pwd: string;
+};
+
 export type Chat = {
   chat_id: string;
   user_id: string;

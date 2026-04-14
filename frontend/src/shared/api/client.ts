@@ -1,9 +1,15 @@
 import type {
+  AdminUser,
   Chat,
   ChatMessageResponse,
+  CreateUserPayload,
   FileDoc,
   HistoryMessage,
+  ProfileEditNamePayload,
+  ProfileEditPasswordPayload,
   UploadResponse,
+  UpdateUserNamePayload,
+  UpdateUserPasswordPayload,
   UserProfile,
   Workspace,
 } from "./types";
@@ -60,6 +66,48 @@ export const api = {
     }),
   logout: () => request<{ message: string }>("/logout", { method: "POST" }),
   profile: () => request<UserProfile>("/profile/"),
+  profileEditNameSurname: (payload: ProfileEditNamePayload) => {
+    const params = new URLSearchParams();
+    if (payload.name !== undefined) params.set("name", payload.name);
+    if (payload.surname !== undefined) params.set("surname", payload.surname);
+    return request<UserProfile>(`/profile/edit_name_surname?${params.toString()}`, { method: "POST" });
+  },
+  profileEditPassword: (payload: ProfileEditPasswordPayload) => {
+    const params = new URLSearchParams({
+      old_pwd: payload.old_pwd,
+      new_pwd: payload.new_pwd,
+      confirm_pwd: payload.confirm_pwd,
+    });
+    return request<boolean>(`/profile/edit_password?${params.toString()}`, { method: "POST" });
+  },
+  adminGetUsers: () => request<AdminUser[]>("/admin/get_all_users"),
+  adminCreateUser: (payload: CreateUserPayload) =>
+    request<AdminUser>("/admin/create_user", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminDeleteUser: (login: string) =>
+    request<{ status: string; message: string }>("/admin/delete_user", {
+      method: "DELETE",
+      body: JSON.stringify({ login }),
+    }),
+  adminUpdateUserNameSurname: (payload: UpdateUserNamePayload) => {
+    const params = new URLSearchParams({ login: payload.login });
+    if (payload.name !== undefined) params.set("name", payload.name);
+    if (payload.surname !== undefined) params.set("surname", payload.surname);
+    return request<AdminUser>(`/admin/update_user_name_surname?${params.toString()}`, {
+      method: "POST",
+    });
+  },
+  adminUpdateUserPassword: (payload: UpdateUserPasswordPayload) => {
+    const params = new URLSearchParams({
+      login: payload.login,
+      new_pwd: payload.new_pwd,
+    });
+    return request<boolean>(`/admin/update_user_password?${params.toString()}`, {
+      method: "POST",
+    });
+  },
   chats: () => request<Chat[]>("/chat/list"),
   createChat: (title: string, workspace_ids: string[] = []) =>
     request<Chat>("/chat/create", {
