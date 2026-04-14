@@ -5,6 +5,15 @@ Production-style веб-сервис для мультимодального RAG
 ## Ключевые возможности
 
 - Cookie-based авторизация: `login/logout`, роли user/admin, профиль пользователя.
+- Личный кабинет пользователя (`/profile`):
+  - просмотр логина/роли/даты создания;
+  - редактирование имени и фамилии;
+  - смена пароля через проверку старого пароля и подтверждение нового.
+- Админ-панель (`/admin`) для управления пользователями:
+  - поиск по логину/ФИО;
+  - создание пользователя (включая роль и admin-флаг);
+  - редактирование имени/фамилии и сброс пароля;
+  - удаление пользователя.
 - Работа с `workspace`:
   - создание, приватность, список своих и библиотечных workspace;
   - поиск публичных workspace и добавление в библиотеку;
@@ -104,8 +113,14 @@ services/
 
 frontend/
   src/
-    app/                     # layout + protected route
-    features/                # auth/chat/workspaces/files
+    app/                     # layout + protected route + sidebar navigation
+    features/
+      auth/                  # login/session
+      chat/                  # chat UI + smart search toggles
+      workspaces/            # workspace management + library
+      files/                 # workspace files list/upload
+      profile/               # profile page (edit name/surname/password)
+      admin/                 # admin users page
     shared/                  # api client, types, ui, store
 ```
 
@@ -116,6 +131,20 @@ frontend/
 - `POST /login`
 - `POST /logout`
 - `GET /profile/`
+
+### Profile
+
+- `GET /profile/`
+- `POST /profile/edit_name_surname?name=...&surname=...`
+- `POST /profile/edit_password?old_pwd=...&new_pwd=...&confirm_pwd=...`
+
+### Admin
+
+- `GET /admin/get_all_users`
+- `POST /admin/create_user` (JSON body)
+- `POST /admin/update_user_name_surname?login=...&name=...&surname=...`
+- `POST /admin/update_user_password?login=...&new_pwd=...`
+- `DELETE /admin/delete_user` (JSON body: `{ "login": "..." }`)
 
 ### Chat
 
