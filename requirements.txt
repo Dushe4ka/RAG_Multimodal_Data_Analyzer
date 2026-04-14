@@ -31,3 +31,4 @@ httpx
 minio
 pytest
 pytest-asyncio
+faster-whisper

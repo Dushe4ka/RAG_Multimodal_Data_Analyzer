@@ -31,6 +31,9 @@ class ChatCreateRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     message: str = Field(min_length=1)
+    smart_search: bool = False
+    smart_iterations: int = Field(default=3, ge=1, le=3)
+    smart_extra_queries: int = Field(default=2, ge=0, le=2)
 
 
 class ChatRenameRequest(BaseModel):

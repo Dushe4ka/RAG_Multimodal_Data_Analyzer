@@ -7,11 +7,12 @@
 3. Файл сохраняется в MinIO (`object_key`), запись о файле создается в `workspace_files`.
 4. Pipeline определяет тип данных:
    - text/doc -> Tika extraction;
-   - image -> Ollama vision img2txt;
-   - audio -> ASR stub;
-   - video -> stub.
+   - image -> `langchain_ollama` (`ChatOllama`) img2txt;
+   - audio -> `faster-whisper` (ASR);
+   - video -> `ffmpeg` (extract audio) -> `faster-whisper`.
 5. Текст очищается (`clean_for_embedding`) и индексируется в Qdrant коллекцию `workspace_{workspace_id}`.
 6. В чате (`/chat/{chat_id}/message`) при подключенном workspace агент делает retrieval в соответствующей коллекции.
+   - если включен `smart_search`, используется итеративный retrieval (до 3 итераций, до 2 уточняющих запросов на итерацию).
 7. API возвращает ответ и `sources` с presigned ссылками MinIO.
 
 ## Связность сущностей
@@ -37,3 +38,4 @@
 - `DELETE /chat/{chat_id}`
 - `POST /chat/{chat_id}/attach_workspaces`
 - `POST /chat/{chat_id}/message`
+- `GET /chat/{chat_id}/history`

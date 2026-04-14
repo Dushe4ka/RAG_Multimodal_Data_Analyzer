@@ -36,6 +36,9 @@ def create_rag_agent(
     collection_name: str,
     qdrant_url: str,
     use_sparse: bool = True,
+    smart_search: bool = False,
+    smart_iterations: int = 3,
+    smart_extra_queries: int = 2,
 ) -> Any:
     """Создает RAG-агента LangChain с tool-based retrieval + памятью."""
     prov = settings.DENSE_MODEL_PROVIDER
@@ -76,6 +79,9 @@ def create_rag_agent(
         store=memory.store,
         user_id=user_id,
         workspace_id=workspace_id,
+        smart_search=smart_search,
+        smart_iterations=smart_iterations,
+        smart_extra_queries=smart_extra_queries,
     )
 
     middleware = [

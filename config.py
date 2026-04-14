@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_VISION_MODEL: str = "qwen2.5vl:7b"
     OLLAMA_TIMEOUT_SEC: float = 120.0
+    # ASR / video preprocessing
+    WHISPER_MODEL_SIZE: str = "small"
+    WHISPER_DEVICE: str = "cpu"
+    WHISPER_COMPUTE_TYPE: str = "int8"
+    WHISPER_BEAM_SIZE: int = 5
+    FFMPEG_BIN: str = "ffmpeg"
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")

@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 
 from ai.llm.rag_agent.agent import chat_once, create_rag_agent
 from ai.llm.rag_agent.memory import init_agent_memory
+from ai.llm.rag_agent.tools import run_smart_search
 from ai.vector.embed_model import EmbedModel
 from ai.vector.vector_store import VectorStore
 from app.schemas import ChatCreateRequest, ChatMessageRequest, ChatRenameRequest
@@ -81,6 +82,7 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
     workspace_ids = chat.get("workspace_ids", [])
     answer = ""
     sources = []
+    retrieval_trace = []
 
     if workspace_ids:
         workspace_id = workspace_ids[0]
@@ -94,6 +96,9 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
                     collection_name=f"workspace_{workspace_id}",
                     qdrant_url=settings.QDRANT_URL,
                     use_sparse=settings.USE_SPARSE,
+                    smart_search=payload.smart_search,
+                    smart_iterations=payload.smart_iterations,
+                    smart_extra_queries=payload.smart_extra_queries,
                 )
                 answer = chat_once(
                     agent=agent,
@@ -109,7 +114,18 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
                 use_sparse=settings.USE_SPARSE,
                 sparse_model_name=settings.SPARSE_MODEL_NAME,
             )
-            hits = vector_store.search(payload.message, limit=3, mode="hybrid")
+            if payload.smart_search:
+                hits, retrieval_trace = run_smart_search(
+                    vector_store=vector_store,
+                    query=payload.message,
+                    workspace_id=workspace_id,
+                    limit=3,
+                    mode="hybrid",
+                    iterations=payload.smart_iterations,
+                    extra_queries=payload.smart_extra_queries,
+                )
+            else:
+                hits = vector_store.search(payload.message, limit=3, mode="hybrid")
             minio_service = MinioService()
             for hit in hits:
                 p = hit.get("payload", {})
@@ -138,4 +154,4 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
     await chats_db.append_message(chat_id=chat_id, role="user", content=payload.message)
     await chats_db.append_message(chat_id=chat_id, role="assistant", content=answer, sources=sources)
     await chats_db.touch_chat(chat_id=chat_id)
-    return {"chat_id": chat_id, "answer": answer, "sources": sources}
+    return {"chat_id": chat_id, "answer": answer, "sources": sources, "retrieval_trace": retrieval_trace}

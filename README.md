@@ -18,9 +18,17 @@ Production-style веб-сервис для мультимодального RAG
   - хранение бинарных файлов в MinIO;
   - сохранение метаданных в MongoDB;
   - текстовая экстракция/предобработка/чанкинг/векторизация в Qdrant.
+- Полноценный multimedia-to-text:
+  - image -> `langchain_ollama` (`ChatOllama`) для извлечения текста/описания;
+  - audio -> `faster-whisper`;
+  - video -> `ffmpeg` (extract audio) + `faster-whisper`.
 - Ответы ИИ с источниками:
   - `sources` в ответе,
   - `download_url` (presigned MinIO link) для скачивания исходников.
+- Режим умного поиска (`smart_search`) в чате:
+  - итеративный retrieval по векторному хранилищу;
+  - автоматическая генерация уточняющих запросов;
+  - ограничение итераций и количества уточнений.
 
 ## Технологический стек
 
@@ -136,6 +144,44 @@ frontend/
 - `GET /files/workspace/{workspace_id}`
 - `GET /files/{file_id}/download_link`
 
+## Как работает ingestion
+
+1. Пользователь загружает файл в `workspace`.
+2. API сохраняет исходный бинарный файл в MinIO и метаданные в MongoDB (`workspace_files`).
+3. Pipeline определяет модальность:
+   - `text/doc` -> Apache Tika;
+   - `image` -> `ChatOllama` (vision);
+   - `audio` -> `faster-whisper`;
+   - `video` -> `ffmpeg` извлекает аудио, затем `faster-whisper`.
+4. Полученный текст очищается (`clean_for_embedding`), чанкуется и индексируется в Qdrant.
+5. В payload каждого чанка пишутся `workspace_id`, `file_id`, `object_key`, чтобы потом отдавать источники и ссылки на скачивание.
+
+## Как работает smart search
+
+Режим включается прямо в `POST /chat/{chat_id}/message`:
+
+```json
+{
+  "message": "вопрос пользователя",
+  "smart_search": true,
+  "smart_iterations": 3,
+  "smart_extra_queries": 2
+}
+```
+
+Логика:
+
+1. Сначала выполняется обычный retrieval по исходному вопросу.
+2. Если сигнал релевантности слабый (мало документов/низкий score), строятся уточняющие запросы.
+3. Выполняются дополнительные итерации retrieval (до `smart_iterations`).
+4. Результаты объединяются и дедуплицируются по `file_id/object_key/text`.
+5. Агент формирует ответ из объединенного контекста.
+6. В ответ добавляется `retrieval_trace` (для отладки итераций).
+
+Ограничения на стороне API:
+- `smart_iterations`: `1..3`
+- `smart_extra_queries`: `0..2`
+
 ## Локальный запуск (dev)
 
 ### 1) Инфраструктура
@@ -178,6 +224,7 @@ Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 - Tika: `TIKA_URL`, `TIKA_TIMEOUT_SEC`
 - Ingest: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `UPLOAD_MAX_FILE_MB`
 - Ollama: `OLLAMA_BASE_URL`, `OLLAMA_VISION_MODEL`
+- ASR/Video: `WHISPER_MODEL_SIZE`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`, `WHISPER_BEAM_SIZE`, `FFMPEG_BIN`
 
 ## Тестирование
 
@@ -221,9 +268,9 @@ pytest
 
 ## Ограничения текущей версии
 
-- Для `openai` embeddings нужен сетевой доступ к ресурсам tokenizer/модели.
-- ASR для аудио сейчас реализован как заглушка (точка расширения под Whisper).
-- Видео-пайплайн пока заглушка (`stub`/`not implemented`).
+- Для `openai` embeddings и части токенизации нужен внешний интернет-доступ.
+- Для audio/video ingestion необходим установленный `ffmpeg` и доступный runtime `faster-whisper`.
+- `smart_search` увеличивает latency ответа, так как выполняет итеративный retrieval.
 
 ## Дополнительная документация
 
