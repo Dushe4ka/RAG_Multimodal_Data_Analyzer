@@ -100,7 +100,13 @@ def build_rag_tools(
 
     @tool
     def retrieve_context(query: str, limit: int = 5, mode: str = "hybrid") -> str:
-        """Ищет релевантный контекст в Qdrant (hybrid/dense)."""
+        """Поиск релевантных фрагментов в векторной базе Qdrant workspace.
+
+        ОБЯЗАТЕЛЬНО вызывай перед ответом на вопросы о файлах, документах, фото, аудио и видео.
+        query — формулировка вопроса или ключевые слова для поиска.
+        Возвращает JSON-массив: score, source (имя файла), media_type, content (текст/описание/транскрипция).
+        Для изображений content — текстовое описание, созданное при загрузке файла.
+        """
         safe_mode = mode if mode in ("hybrid", "dense") else "hybrid"
         hits = vector_store.search(
             query=query,
@@ -115,6 +121,7 @@ def build_rag_tools(
                 {
                     "score": hit.get("score"),
                     "source": payload.get("source"),
+                    "media_type": payload.get("media_type"),
                     "workspace_id": payload.get("workspace_id"),
                     "file_id": payload.get("file_id"),
                     "object_key": payload.get("object_key"),
@@ -125,7 +132,12 @@ def build_rag_tools(
 
     @tool
     def smart_retrieve_context(query: str, limit: int = 5, mode: str = "hybrid") -> str:
-        """Итеративный retrieval с уточняющими запросами для сложных случаев."""
+        """Умный итеративный поиск в Qdrant с уточняющими подзапросами.
+
+        ОБЯЗАТЕЛЬНО вызывай перед ответом на сложные вопросы о содержимом workspace.
+        query — вопрос пользователя. Возвращает JSON: hits (фрагменты с content) и trace (шаги поиска).
+        Для изображений content — текстовое описание, созданное при загрузке.
+        """
         hits, trace = run_smart_search(
             vector_store=vector_store,
             query=query,
@@ -142,6 +154,7 @@ def build_rag_tools(
                 {
                     "score": hit.get("score"),
                     "source": payload.get("source"),
+                    "media_type": payload.get("media_type"),
                     "workspace_id": payload.get("workspace_id"),
                     "file_id": payload.get("file_id"),
                     "object_key": payload.get("object_key"),

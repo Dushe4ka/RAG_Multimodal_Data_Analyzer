@@ -97,3 +97,8 @@ class AsyncWorkspaceFilesDatabase:
     async def get_file(self, file_id: str):
         await self.ensure_connection()
         return await self._collection.find_one({"file_id": file_id})
+
+    async def delete_by_workspace(self, workspace_id: str) -> int:
+        await self.ensure_connection()
+        result = await self._collection.delete_many({"workspace_id": workspace_id})
+        return result.deleted_count

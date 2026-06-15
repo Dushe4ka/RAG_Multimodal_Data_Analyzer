@@ -59,14 +59,17 @@ export type HistoryMessage = {
 export type Source = {
   file_id?: string;
   workspace_id?: string;
+  object_key?: string;
   score?: number;
   text?: string;
   source?: string;
+  media_type?: string;
   download_url?: string;
 };
 
 export type ChatMessageResponse = {
   chat_id: string;
+  title?: string;
   answer: string;
   sources: Source[];
   retrieval_trace?: Array<{
@@ -85,6 +88,12 @@ export type Workspace = {
   created_at: string;
   updated_at: string;
   member_user_ids: string[];
+  owner_login?: string;
+  owner_name?: string;
+  owner_surname?: string;
+  owner_display_name?: string;
+  is_owner?: boolean;
+  is_subscribed?: boolean;
 };
 
 export type FileDoc = {
@@ -108,5 +117,7 @@ export type UploadResponse = {
   filename: string;
   media_type: string;
   extraction_status: string;
+  failed_stage?: string;
+  reprocess_stage?: string;
   message?: string;
 };

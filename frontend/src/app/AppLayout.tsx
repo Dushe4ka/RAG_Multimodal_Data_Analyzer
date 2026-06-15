@@ -1,6 +1,19 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, LogOut, MessageSquarePlus, PanelsLeftBottom, Pencil, Shield, Trash2, UserCircle2 } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  MessageSquare,
+  MessageSquarePlus,
+  PanelsLeftBottom,
+  Pencil,
+  Shield,
+  Trash2,
+  UserCircle2,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 import { api } from "../shared/api/client";
@@ -42,99 +55,164 @@ export function AppLayout() {
     },
   });
 
+  const cancelRename = () => {
+    setRenameId(null);
+    setRenameValue("");
+  };
+
   return (
     <div className={styles.layout}>
       <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}>
-        <div className={styles.topActions}>
-          <button className={styles.iconButton} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+        <div className={styles.sidebarHeader}>
+          <button
+            type="button"
+            className={styles.collapseBtn}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? "Развернуть панель" : "Свернуть панель"}
+          >
             {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
-          {!sidebarCollapsed && (
-            <>
-              <button
-                className={styles.actionButton}
-                onClick={() => {
-                  setActiveChatId(null);
-                  setSelectedWorkspace(null, null);
-                  navigate("/");
-                }}
-              >
-                <MessageSquarePlus size={16} />
-                Новый чат
-              </button>
-              <NavLink className={styles.actionButton} to="/workspaces">
-                <PanelsLeftBottom size={16} />
-                Рабочие пространства
-              </NavLink>
-              {session.data?.admin ? (
-                <NavLink className={styles.actionButton} to="/admin">
-                  <Shield size={16} />
-                  Админ панель
-                </NavLink>
-              ) : null}
-            </>
-          )}
+          {!sidebarCollapsed ? (
+            <div className={styles.brand}>
+              <span className={styles.brandMark}>RAG</span>
+              <span className={styles.brandText}>Multimodal</span>
+            </div>
+          ) : null}
         </div>
-        <div className={styles.divider} />
-        {!sidebarCollapsed && (
-          <div className={styles.chatList}>
-            {chatsQuery.data?.length ? (
-              chatsQuery.data.map((chat) => (
-                <div key={chat.chat_id} className={`${styles.chatItem} ${activeChatId === chat.chat_id ? styles.activeChat : ""}`}>
-                  <button
-                    className={styles.chatOpenButton}
-                    onClick={() => {
-                      setActiveChatId(chat.chat_id);
-                      const firstWs = chat.workspace_ids?.[0] ?? null;
-                      setSelectedWorkspace(firstWs, null);
-                      navigate("/");
-                    }}
-                  >
-                    {chat.title}
-                  </button>
-                  <div className={styles.chatActions}>
-                    <button
-                      className={styles.chatActionBtn}
-                      onClick={() => {
-                        setRenameId(chat.chat_id);
-                        setRenameValue(chat.title);
-                      }}
-                      title="Переименовать чат"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      className={styles.chatActionBtn}
-                      onClick={() => deleteChatMutation.mutate(chat.chat_id)}
-                      title="Удалить чат"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  {renameId === chat.chat_id ? (
-                    <div className={styles.renameRow}>
-                      <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
-                      <button
-                        onClick={() => renameChatMutation.mutate({ chatId: chat.chat_id, title: renameValue || chat.title })}
-                      >
-                        OK
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ))
-            ) : (
-              <div className={styles.empty}>Пока нет чатов</div>
-            )}
+
+        {!sidebarCollapsed ? (
+          <div className={styles.topActions}>
+            <button
+              type="button"
+              className={`${styles.actionButton} ${styles.actionButtonPrimary}`}
+              onClick={() => {
+                setActiveChatId(null);
+                setSelectedWorkspace(null, null);
+                navigate("/");
+              }}
+            >
+              <MessageSquarePlus size={16} />
+              Новый чат
+            </button>
+            <NavLink className={({ isActive }) => `${styles.actionButton} ${isActive ? styles.actionButtonActive : ""}`} to="/workspaces">
+              <PanelsLeftBottom size={16} />
+              Рабочие пространства
+            </NavLink>
+            {session.data?.admin ? (
+              <NavLink className={({ isActive }) => `${styles.actionButton} ${isActive ? styles.actionButtonActive : ""}`} to="/admin">
+                <Shield size={16} />
+                Админ панель
+              </NavLink>
+            ) : null}
           </div>
-        )}
+        ) : null}
+
+        {!sidebarCollapsed ? (
+          <>
+            <div className={styles.sectionLabel}>
+              История чатов
+              {chatsQuery.data?.length ? <span className={styles.sectionCount}>{chatsQuery.data.length}</span> : null}
+            </div>
+            <div className={styles.chatList}>
+              {chatsQuery.data?.length ? (
+                chatsQuery.data.map((chat) => {
+                  const isActive = activeChatId === chat.chat_id;
+                  const isRenaming = renameId === chat.chat_id;
+                  return (
+                    <div key={chat.chat_id} className={`${styles.chatItem} ${isActive ? styles.activeChat : ""}`}>
+                      {isRenaming ? (
+                        <div className={styles.renameRow}>
+                          <input
+                            className={styles.renameInput}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                renameChatMutation.mutate({ chatId: chat.chat_id, title: renameValue || chat.title });
+                              }
+                              if (e.key === "Escape") cancelRename();
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            className={styles.renameConfirm}
+                            onClick={() => renameChatMutation.mutate({ chatId: chat.chat_id, title: renameValue || chat.title })}
+                            title="Сохранить"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button type="button" className={styles.renameCancel} onClick={cancelRename} title="Отмена">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={styles.chatOpenButton}
+                            onClick={() => {
+                              setActiveChatId(chat.chat_id);
+                              const firstWs = chat.workspace_ids?.[0] ?? null;
+                              setSelectedWorkspace(firstWs, null);
+                              navigate("/");
+                            }}
+                          >
+                            <span className={styles.chatIcon}>
+                              <MessageSquare size={15} />
+                            </span>
+                            <span className={styles.chatTitle}>{chat.title}</span>
+                          </button>
+                          <div className={styles.chatActions}>
+                            <button
+                              type="button"
+                              className={styles.chatActionBtn}
+                              onClick={() => {
+                                setRenameId(chat.chat_id);
+                                setRenameValue(chat.title);
+                              }}
+                              title="Переименовать"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.chatActionBtn} ${styles.chatActionBtnDanger}`}
+                              onClick={() => deleteChatMutation.mutate(chat.chat_id)}
+                              title="Удалить чат"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className={styles.empty}>Пока нет чатов — начните новый диалог</div>
+              )}
+            </div>
+          </>
+        ) : null}
+
         <div className={styles.bottom}>
-          {!sidebarCollapsed && <Link to="/">RAG Multimodal</Link>}
+          {!sidebarCollapsed && session.data?.login ? (
+            <div className={styles.userBlock}>
+              <span className={styles.userAvatar}>{session.data.login.slice(0, 1).toUpperCase()}</span>
+              <div className={styles.userMeta}>
+                <span className={styles.userName}>
+                  {[session.data.name, session.data.surname].filter(Boolean).join(" ") || session.data.login}
+                </span>
+                <span className={styles.userLogin}>@{session.data.login}</span>
+              </div>
+            </div>
+          ) : null}
           <div className={styles.bottomActions}>
-            <NavLink className={`${styles.iconButton} ${styles.profileButton}`} to="/profile" title="Профиль">
+            <NavLink className={styles.bottomIconBtn} to="/profile" title="Профиль">
               <UserCircle2 size={18} />
             </NavLink>
-            <button className={styles.iconButton} onClick={() => logoutMutation.mutate()} title="Выйти">
+            <button type="button" className={styles.bottomIconBtn} onClick={() => logoutMutation.mutate()} title="Выйти">
               <LogOut size={16} />
             </button>
           </div>

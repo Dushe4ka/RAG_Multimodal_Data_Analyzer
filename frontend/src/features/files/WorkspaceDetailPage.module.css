@@ -1,45 +1,210 @@
 .page {
-  padding: 20px;
+  padding: 24px 28px 40px;
   height: 100%;
   overflow-y: auto;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 255, 0.75));
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 42%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
+.backLink {
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.backLink:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #1e293b;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  margin-bottom: 16px;
+}
+
+.heroIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: #4338ca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.heroText {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.badgePrivate,
+.badgePublic,
+.roleBadge,
+.roleBadgeMuted {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.badgePrivate {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgePublic {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.roleBadge {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.roleBadgeMuted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .uploadButton {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid #d1d5db;
+  gap: 8px;
+  border: none;
   border-radius: 10px;
-  background: #fff;
-  padding: 8px 12px;
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
+  color: #fff;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.readOnlyHint {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .fileList {
   list-style: none;
   padding: 0;
-  margin: 16px 0 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .fileItem {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   background: #fff;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 14px;
+  padding: 14px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s ease;
+}
+
+.fileItem:hover {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.fileMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fileMeta > span:first-child {
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.fileSize {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.fileActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.downloadBtn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.downloadBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pending {
@@ -47,10 +212,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 13px;
 }
 
 .indexed {
   color: #027a48;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stub {
+  color: #b54708;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .error {
@@ -58,11 +232,31 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 13px;
+  max-width: 280px;
+  text-align: right;
 }
 
-.empty {
-  margin-top: 18px;
-  color: #6b7280;
+.emptyState {
+  margin: 32px 0;
+  text-align: center;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.loading {
+  color: #64748b;
+  padding: 8px 0 16px;
 }
 
 .spin {
@@ -70,14 +264,15 @@
 }
 
 .inlineAction {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   border: 1px solid #d1d5db;
   background: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 @keyframes spin {

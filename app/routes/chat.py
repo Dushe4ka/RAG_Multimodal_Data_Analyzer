@@ -11,6 +11,8 @@ from ai.vector.vector_store import VectorStore
 from app.schemas import ChatCreateRequest, ChatMessageRequest, ChatRenameRequest
 from app.serializers import to_jsonable
 from app.utils import get_current_user
+from services.sources import dedupe_sources, hits_to_sources
+from services.chat_title import make_chat_title
 from config import get_memory_db_url, settings
 from database.mongodb.main import chats_db, workspaces_db
 from services.storage.minio_service import MinioService
@@ -60,6 +62,9 @@ async def get_chat_history(chat_id: str, user_id: str = Depends(get_current_user
     if not chat or chat["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="Chat not found")
     history = await chats_db.get_message_history(chat_id=chat_id)
+    for message in history:
+        if message.get("sources"):
+            message["sources"] = dedupe_sources(message["sources"])
     return to_jsonable(history)
 
 
@@ -83,6 +88,11 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
     answer = ""
     sources = []
     retrieval_trace = []
+    chat_title = chat.get("title")
+
+    if not chat.get("message_history"):
+        chat_title = make_chat_title(payload.message)
+        await chats_db.rename_chat(chat_id=chat_id, user_id=user_id, title=chat_title)
 
     if workspace_ids:
         workspace_id = workspace_ids[0]
@@ -119,26 +129,17 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
                     vector_store=vector_store,
                     query=payload.message,
                     workspace_id=workspace_id,
-                    limit=3,
+                    limit=5,
                     mode="hybrid",
                     iterations=payload.smart_iterations,
                     extra_queries=payload.smart_extra_queries,
                 )
             else:
-                hits = vector_store.search(payload.message, limit=3, mode="hybrid")
+                hits = vector_store.search(payload.message, limit=5, mode="hybrid")
+                retrieval_trace = []
+
             minio_service = MinioService()
-            for hit in hits:
-                p = hit.get("payload", {})
-                source = {
-                    "file_id": p.get("file_id"),
-                    "workspace_id": p.get("workspace_id"),
-                    "score": hit.get("score"),
-                    "text": p.get("text", ""),
-                    "source": p.get("source"),
-                }
-                if p.get("object_key"):
-                    source["download_url"] = minio_service.presigned_get_url(p["object_key"])
-                sources.append(source)
+            sources = dedupe_sources(hits_to_sources(hits, minio_service=minio_service))
         else:
             raise HTTPException(status_code=403, detail="No access to attached workspace")
     else:
@@ -154,4 +155,10 @@ async def send_message(chat_id: str, payload: ChatMessageRequest, user_id: str =
     await chats_db.append_message(chat_id=chat_id, role="user", content=payload.message)
     await chats_db.append_message(chat_id=chat_id, role="assistant", content=answer, sources=sources)
     await chats_db.touch_chat(chat_id=chat_id)
-    return {"chat_id": chat_id, "answer": answer, "sources": sources, "retrieval_trace": retrieval_trace}
+    return {
+        "chat_id": chat_id,
+        "title": chat_title,
+        "answer": answer,
+        "sources": sources,
+        "retrieval_trace": retrieval_trace,
+    }

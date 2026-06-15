@@ -10,6 +10,9 @@ redis
 celery
 motor
 pymongo
+asyncpg
+psycopg[binary]
+langgraph-checkpoint-postgres
 qdrant_client
 fastembed
 # BGE-M3 (локально): FlagEmbedding тянет PyTorch — тяжёлая зависимость; для qwen/openai не обязательна.
@@ -19,6 +22,7 @@ python-dotenv
 langchain-community
 langchain-core
 langchain-openai
+tiktoken
 langchain-deepseek
 langchain-ollama
 bcrypt==4.0.1

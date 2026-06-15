@@ -49,3 +49,11 @@ class MinioService:
 
     def delete(self, object_key: str) -> None:
         self.client.remove_object(self.bucket, object_key)
+
+    def download_bytes(self, object_key: str) -> bytes:
+        response = self.client.get_object(self.bucket, object_key)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()

@@ -6,38 +6,44 @@ Production-style веб-сервис для мультимодального RAG
 
 - Cookie-based авторизация: `login/logout`, роли user/admin, профиль пользователя.
 - Личный кабинет пользователя (`/profile`):
-  - просмотр логина/роли/даты создания;
+  - карточный UI с аватаром, бейджами роли и датой регистрации;
   - редактирование имени и фамилии;
   - смена пароля через проверку старого пароля и подтверждение нового.
 - Админ-панель (`/admin`) для управления пользователями:
-  - поиск по логину/ФИО;
+  - поиск по логину/ФИО (в блоке списка пользователей);
   - создание пользователя (включая роль и admin-флаг);
   - редактирование имени/фамилии и сброс пароля;
   - удаление пользователя.
 - Работа с `workspace`:
-  - создание, приватность, список своих и библиотечных workspace;
-  - поиск публичных workspace и добавление в библиотеку;
-  - rename/delete workspace (owner-only).
+  - вкладки **Мои** / **Добавленные** / **Каталог** публичных пространств;
+  - публичные workspace остаются в каталоге после добавления (бейдж «Уже добавлено», удаление по hover);
+  - создание, приватность, rename/delete (owner-only);
+  - каскадное удаление: MongoDB + MinIO + Qdrant collection;
+  - обогащение карточек данными автора (`owner_display_name`, `is_owner`, `is_subscribed`).
 - Чаты:
-  - создание, список, удаление, переименование;
-  - привязка/отвязка workspace к чату;
-  - хранение истории сообщений в `chats.message_history`;
-  - загрузка истории по chat_id.
+  - боковая панель: история чатов, inline-переименование, удаление;
+  - **название чата** формируется из первого сообщения пользователя и сохраняется в MongoDB;
+  - привязка workspace к чату через picker с разделами «Мои» / «Добавленные»;
+  - композер: умный поиск, выбор workspace, индикатор набора (анимация точек);
+  - хранение истории в `chats.message_history`, загрузка по `chat_id`.
 - Мультимодальная загрузка файлов:
   - хранение бинарных файлов в MinIO;
-  - сохранение метаданных в MongoDB;
-  - текстовая экстракция/предобработка/чанкинг/векторизация в Qdrant.
+  - метаданные в MongoDB, скачивание по presigned URL;
+  - повторная обработка файлов со статусом `error` (`POST /files/{file_id}/reprocess`);
+  - публичные workspace: чтение файлов для всех, запись — только для участников.
 - Полноценный multimedia-to-text:
-  - image -> `langchain_ollama` (`ChatOllama`) для извлечения текста/описания;
+  - image -> `ollama` или `openai` vision (`IMAGE_VISION_PROVIDER`);
   - audio -> `faster-whisper`;
-  - video -> `ffmpeg` (extract audio) + `faster-whisper`.
+  - video -> `ffmpeg` + `faster-whisper`.
 - Ответы ИИ с источниками:
-  - `sources` в ответе,
-  - `download_url` (presigned MinIO link) для скачивания исходников.
-- Режим умного поиска (`smart_search`) в чате:
-  - итеративный retrieval по векторному хранилищу;
-  - автоматическая генерация уточняющих запросов;
-  - ограничение итераций и количества уточнений.
+  - Markdown-рендеринг ответов (`react-markdown`, `remark-gfm`);
+  - дедупликация источников по `file_id` (один файл — одна запись);
+  - карточки источников с типом медиа и превью текста;
+  - `download_url` (presigned MinIO) для скачивания исходников.
+- RAG-агент с tool-based retrieval:
+  - агент **обязан** вызывать `retrieve_context` / `smart_retrieve_context` перед ответом по документам;
+  - изображения/аудио/видео в Qdrant хранятся как текстовые описания и транскрипции — ответ строится по ним;
+  - режим **умного поиска** (`smart_search`): итеративный retrieval с уточняющими запросами.
 
 ## Технологический стек
 
@@ -59,6 +65,7 @@ Production-style веб-сервис для мультимодального RAG
 - `Zustand`
 - `CSS Modules`
 - `lucide-react`
+- `react-markdown` + `remark-gfm`
 
 ### Infra / Local services
 
@@ -109,7 +116,10 @@ ai/
 services/
   storage/minio_service.py   # upload/presigned/delete
   extract/tika_service.py    # text extraction client
-  ingest/                    # multimodal pipeline
+  ingest/                    # multimodal pipeline + reprocess
+  sources.py                 # dedupe_sources для API/UI
+  chat_title.py              # название чата из первого сообщения
+  workspace_cleanup.py       # каскадное удаление workspace
 
 frontend/
   src/
@@ -153,7 +163,7 @@ frontend/
 - `PATCH /chat/{chat_id}` (rename)
 - `DELETE /chat/{chat_id}`
 - `POST /chat/{chat_id}/attach_workspaces`
-- `POST /chat/{chat_id}/message`
+- `POST /chat/{chat_id}/message` — ответ включает `title` (актуальное название чата)
 - `GET /chat/{chat_id}/history`
 
 ### Workspaces
@@ -163,6 +173,8 @@ frontend/
 - `GET /workspaces/library`
 - `POST /workspaces/search_public`
 - `POST /workspaces/{workspace_id}/add_to_library`
+- `DELETE /workspaces/{workspace_id}/library` — убрать из добавленных
+- `GET /workspaces/{workspace_id}` — детали workspace с автором
 - `PATCH /workspaces/{workspace_id}/visibility`
 - `PATCH /workspaces/{workspace_id}` (rename)
 - `DELETE /workspaces/{workspace_id}`
@@ -172,6 +184,18 @@ frontend/
 - `POST /files/upload/{workspace_id}` (multipart/form-data)
 - `GET /files/workspace/{workspace_id}`
 - `GET /files/{file_id}/download_link`
+- `POST /files/{file_id}/reprocess` — повтор extract/index для файла со статусом `error`
+
+## Как работает RAG в чате
+
+1. К чату привязан `workspace_id` — коллекция Qdrant `workspace_<id>`.
+2. Агент LangGraph получает system prompt с правилом: **сначала** вызвать tool поиска в Qdrant.
+3. Обычный режим: tool `retrieve_context` — один гибридный поиск (dense + sparse).
+4. Умный режим: tool `smart_retrieve_context` — итеративный поиск (см. ниже).
+5. В tool возвращаются фрагменты с полем `content` (текст, описание фото, транскрипция).
+6. Агент формирует ответ в Markdown; API дополнительно возвращает `sources` для UI.
+
+При первом сообщении в чате заголовок автоматически устанавливается из текста запроса (до 80 символов) и сохраняется в MongoDB.
 
 ## Как работает ingestion
 
@@ -187,7 +211,7 @@ frontend/
 
 ## Как работает smart search
 
-Режим включается прямо в `POST /chat/{chat_id}/message`:
+Режим включается кнопкой **«Умный поиск»** в чате или в теле запроса:
 
 ```json
 {
@@ -198,18 +222,21 @@ frontend/
 }
 ```
 
-Логика:
+Логика (`run_smart_search` / tool `smart_retrieve_context`):
 
-1. Сначала выполняется обычный retrieval по исходному вопросу.
-2. Если сигнал релевантности слабый (мало документов/низкий score), строятся уточняющие запросы.
-3. Выполняются дополнительные итерации retrieval (до `smart_iterations`).
-4. Результаты объединяются и дедуплицируются по `file_id/object_key/text`.
-5. Агент формирует ответ из объединенного контекста.
-6. В ответ добавляется `retrieval_trace` (для отладки итераций).
+1. Выполняется retrieval по исходному вопросу в Qdrant (hybrid).
+2. Если сигнал слабый (мало документов или `top_score < 0.35`), генерируются уточняющие запросы:
+   - исходный вопрос + ключевые слова из найденных фрагментов;
+   - `«<вопрос> подробности»`;
+   - `«уточнение: <вопрос>»`.
+3. До `smart_iterations` итераций (макс. 3), до `smart_extra_queries` подзапросов за итерацию (макс. 2).
+4. Результаты объединяются, дедуплицируются, сортируются по score.
+5. Агент использует объединённый контекст для ответа; в UI — блок **«Источники»** (отдельный post-retrieval для отображения).
 
-Ограничения на стороне API:
-- `smart_iterations`: `1..3`
-- `smart_extra_queries`: `0..2`
+Ограничения API: `smart_iterations` 1..3, `smart_extra_queries` 0..2.
+
+**Когда включать:** сложные или размытые вопросы, длинные документы/медиа.  
+**Когда выключать:** простые точечные запросы (быстрее и дешевле).
 
 ## Локальный запуск (dev)
 
@@ -253,6 +280,7 @@ Frontend: [http://127.0.0.1:5173](http://127.0.0.1:5173)
 - MinIO: `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_UPLOADS`
 - Tika: `TIKA_URL`, `TIKA_TIMEOUT_SEC`
 - Ingest: `CHUNK_SIZE`, `CHUNK_OVERLAP`, `UPLOAD_MAX_FILE_MB`
+- Image vision: `IMAGE_VISION_PROVIDER` (`ollama` | `openai`), `OPENAI_VISION_MODEL`
 - Ollama: `OLLAMA_BASE_URL`, `OLLAMA_VISION_MODEL`
 - ASR/Video: `WHISPER_MODEL_SIZE`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`, `WHISPER_BEAM_SIZE`, `FFMPEG_BIN`
 
@@ -292,6 +320,41 @@ OLLAMA_CHAT_MODEL=qwen2.5:7b
 Примечание:
 - если `AGENT_LLM_PROVIDER` не указан или указан некорректно, используется `openai`;
 - `DENSE_MODEL_PROVIDER` управляет эмбеддингами/векторизацией и не переключает чат-модель агента.
+
+### Пример `.env` для OpenAI vision (демо обработки фото)
+
+```env
+IMAGE_VISION_PROVIDER=openai
+OPENAI_VISION_MODEL=gpt-4o-mini
+OPENAI_API_KEY=...
+LLM_API_URL=https://api.openai.com/v1
+```
+
+### Аудио и видео (faster-whisper)
+
+Пакет `faster-whisper` уже в `requirements.txt`. Отдельно ставить веса не нужно — при первой транскрипции модель скачивается с Hugging Face по имени `WHISPER_MODEL_SIZE`.
+
+```env
+# tiny | base | small | medium | large-v3  (для демо на CPU обычно хватает small)
+WHISPER_MODEL_SIZE=small
+WHISPER_DEVICE=cpu
+WHISPER_COMPUTE_TYPE=int8
+WHISPER_BEAM_SIZE=5
+FFMPEG_BIN=ffmpeg
+```
+
+Для видео дополнительно нужен `ffmpeg` в PATH:
+
+```bash
+# macOS
+brew install ffmpeg
+```
+
+Проверка после установки зависимостей:
+
+```bash
+python -c "from faster_whisper import WhisperModel; m=WhisperModel('tiny', device='cpu', compute_type='int8'); print('ok')"
+```
 
 ## Тестирование
 
@@ -337,7 +400,8 @@ pytest
 
 - Для `openai` embeddings и части токенизации нужен внешний интернет-доступ.
 - Для audio/video ingestion необходим установленный `ffmpeg` и доступный runtime `faster-whisper`.
-- `smart_search` увеличивает latency ответа, так как выполняет итеративный retrieval.
+- `smart_search` увеличивает latency ответа из-за нескольких запросов к Qdrant.
+- Качество ответов по фото/видео зависит от tool-calling агента и полноты текстовой экстракции при загрузке.
 
 ## Дополнительная документация
 

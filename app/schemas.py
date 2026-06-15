@@ -56,4 +56,6 @@ class UploadResponse(BaseModel):
     filename: str
     media_type: str
     extraction_status: str
+    failed_stage: Optional[str] = None
+    reprocess_stage: Optional[str] = None
     message: Optional[str] = None

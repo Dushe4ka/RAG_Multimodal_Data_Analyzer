@@ -138,6 +138,22 @@ export const api = {
       }),
     }),
   myWorkspaces: () => request<Workspace[]>("/workspaces/my"),
+  getWorkspace: (workspaceId: string) => request<Workspace>(`/workspaces/${workspaceId}`),
+  libraryWorkspaces: () => request<Workspace[]>("/workspaces/library"),
+  searchPublicWorkspaces: (query: string = "") =>
+    request<Workspace[]>("/workspaces/search_public", {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }),
+  addWorkspaceToLibrary: (workspaceId: string) =>
+    request<{ status: string }>(`/workspaces/${workspaceId}/add_to_library`, { method: "POST" }),
+  removeWorkspaceFromLibrary: (workspaceId: string) =>
+    request<{ status: string }>(`/workspaces/${workspaceId}/library`, { method: "DELETE" }),
+  setWorkspaceVisibility: (workspaceId: string, is_private: boolean) =>
+    request<{ status: string }>(`/workspaces/${workspaceId}/visibility`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_private }),
+    }),
   createWorkspace: (name: string, is_private: boolean) =>
     request<Workspace>("/workspaces/", {
       method: "POST",
@@ -156,4 +172,7 @@ export const api = {
     form.append("file", file);
     return request<UploadResponse>(`/files/upload/${workspaceId}`, { method: "POST", body: form });
   },
+  reprocessFile: (fileId: string) =>
+    request<UploadResponse>(`/files/${fileId}/reprocess`, { method: "POST" }),
+  fileDownloadLink: (fileId: string) => request<{ url: string }>(`/files/${fileId}/download_link`),
 };

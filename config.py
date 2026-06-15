@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
     UPLOAD_MAX_FILE_MB: int = 100
+    # Image vision (ingest): ollama | openai
+    IMAGE_VISION_PROVIDER: str = "ollama"
+    OPENAI_VISION_MODEL: str = "gpt-4o-mini"
     # Ollama
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_VISION_MODEL: str = "qwen2.5vl:7b"
@@ -65,7 +68,7 @@ class Settings(BaseSettings):
     FFMPEG_BIN: str = "ffmpeg"
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+        env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
     )
 
 settings=Settings()

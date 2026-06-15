@@ -75,15 +75,24 @@ class AsyncWorkspacesDatabase:
         return await cursor.to_list(length=None)
 
     async def list_library(self, user_id: str):
-        await self.ensure_connection()
-        cursor = self._collection.find({"member_user_ids": user_id}).sort("updated_at", -1)
-        return await cursor.to_list(length=None)
-
-    async def search_public(self, query: str):
+        """Workspace, добавленные пользователем из каталога (не владелец)."""
         await self.ensure_connection()
         cursor = self._collection.find(
-            {"is_private": False, "name": {"$regex": query, "$options": "i"}}
+            {
+                "member_user_ids": user_id,
+                "owner_user_id": {"$ne": user_id},
+            }
         ).sort("updated_at", -1)
+        return await cursor.to_list(length=None)
+
+    async def search_public(self, query: str, *, user_id: Optional[str] = None):
+        """Все публичные workspace; is_subscribed выставляется при enrich на API."""
+        await self.ensure_connection()
+        _ = user_id
+        filt: dict = {"is_private": False}
+        if query.strip():
+            filt["name"] = {"$regex": query.strip(), "$options": "i"}
+        cursor = self._collection.find(filt).sort("updated_at", -1)
         return await cursor.to_list(length=100)
 
     async def get_workspace(self, workspace_id: str):
@@ -92,9 +101,29 @@ class AsyncWorkspacesDatabase:
 
     async def add_to_library(self, workspace_id: str, user_id: str):
         await self.ensure_connection()
+        workspace = await self._collection.find_one({"workspace_id": workspace_id, "is_private": False})
+        if not workspace:
+            return False
+        if workspace.get("owner_user_id") == user_id:
+            return True
         result = await self._collection.update_one(
             {"workspace_id": workspace_id, "is_private": False},
-            {"$addToSet": {"member_user_ids": user_id}, "$set": {"updated_at": datetime.now(timezone.utc)}},
+            {
+                "$addToSet": {"member_user_ids": user_id},
+                "$set": {"updated_at": datetime.now(timezone.utc)},
+            },
+        )
+        return result.modified_count > 0 or user_id in workspace.get("member_user_ids", [])
+
+    async def remove_from_library(self, workspace_id: str, user_id: str):
+        """Отписаться от чужого workspace (владелец не может «удалить из библиотеки»)."""
+        await self.ensure_connection()
+        result = await self._collection.update_one(
+            {"workspace_id": workspace_id, "owner_user_id": {"$ne": user_id}},
+            {
+                "$pull": {"member_user_ids": user_id},
+                "$set": {"updated_at": datetime.now(timezone.utc)},
+            },
         )
         return result.modified_count > 0
 

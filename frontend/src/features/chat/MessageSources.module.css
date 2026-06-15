@@ -1,0 +1,152 @@
+.wrap {
+  margin-top: 12px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.toggle:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.toggleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.toggleText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chevron {
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.itemTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.itemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.itemMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.itemName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemType {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #2563eb;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.downloadBtn:hover {
+  background: #dbeafe;
+}
+
+.preview {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
