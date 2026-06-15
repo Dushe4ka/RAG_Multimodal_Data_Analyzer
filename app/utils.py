@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt
+from jose.exceptions import JWTError
 from fastapi import Cookie, HTTPException, Depends, status
 from config import settings
 from database.mongodb.main import db
@@ -54,7 +55,7 @@ async def verify_jwt_token(token: str):
         return payload["sub"]
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
